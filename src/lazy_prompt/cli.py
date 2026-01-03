@@ -23,9 +23,7 @@ try:
 except Exception:
     keyring = None
 
-from mom_pipeline.live_capture import stream_audio
-from mom_pipeline.live_transcribe import transcribe_audio, translate_audio
-from mom_pipeline.utils import ensure_dir, now_ts, safe_json_dump
+from lazy_prompt.interactive import interactive_refinement_flow
 
 
 def _get_api_key(arg_key: str | None) -> str | None:
@@ -89,6 +87,7 @@ def run_once(
     translate_to_english: bool,
     api_key: str | None,
     enhance_prompt: bool,
+    interactive_mode: bool,
 ) -> int:
     load_dotenv()
 
@@ -123,17 +122,20 @@ def run_once(
     if not full_text.strip():
         print("No speech detected. Exiting.")
         return 1
-
-    # Enhance prompt if requested
-    enhanced_text = full_text
-    if enhance_prompt:
+    # Interactive refinement mode
+    if interactive_mode:
+        print("\nStarting interactive refinement...")
+        final_text = interactive_refinement_flow(full_text, language=language, api_key=key)
+    elif enhance_prompt:
+        # Standard enhancement without interaction
         print("\nEnhancing prompt with GPT-4...")
         enhanced_text = _enhance_prompt(full_text)
         print("\n=== Enhanced Prompt ===")
         print(enhanced_text)
         print("======================\n")
-
-    final_text = enhanced_text if enhance_prompt else full_text
+        final_text = enhanced_text
+    else:
+        final_text = full_text
 
     if save_outputs:
         ts = now_ts()
@@ -145,8 +147,8 @@ def run_once(
 
         # Save transcript
         (out_dir / "transcript.txt").write_text(full_text)
-        if enhance_prompt:
-            (out_dir / "enhanced_prompt.txt").write_text(enhanced_text)
+        if enhance_prompt or interactive_mode:
+            (out_dir / "enhanced_prompt.txt").write_text(final_text)
 
         # Save segments as JSON
         safe_json_dump({"segments": segments}, out_dir / "transcript_segments.json")
@@ -169,7 +171,8 @@ def run_once(
     if copy_to_clipboard:
         try:
             pyperclip.copy(final_text)
-            print(f"\n✓ {'Enhanced prompt' if enhance_prompt else 'Transcript'} copied to clipboard.")
+            mode_desc = "Refined prompt" if interactive_mode else ("Enhanced prompt" if enhance_prompt else "Transcript")
+            print(f"\n✓ {mode_desc} copied to clipboard.")
         except Exception as exc:  # noqa: BLE001
             print(f"\nWarning: Could not copy to clipboard: {exc}")
     else:
@@ -179,13 +182,13 @@ def run_once(
         print(f"\n✓ Saved to: {out_dir}")
         print(f"  - audio_original.wav ({len(audio_bytes)} bytes)")
         print("  - transcript.txt")
-        if enhance_prompt:
+        if enhance_prompt or interactive_mode:
             print("  - enhanced_prompt.txt")
         print("  - transcript_segments.json")
         print("  - metadata.json")
     else:
         print("\n✓ Not saved (default behavior; use --save to write files).")
-    if not enhance_prompt:
+    if not (enhance_prompt or interactive_mode):
         print(f"\nTranscript:\n{full_text}")
     return 0
 
@@ -222,6 +225,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Use GPT-4 to enhance the transcript into an expert-level, structured prompt",
     )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Enable interactive mode: AI asks clarifying questions to refine your prompt through dialogue",
+    )
 
     args = parser.parse_args(argv)
     return run_once(
@@ -232,6 +240,7 @@ def main(argv: list[str] | None = None) -> int:
         translate_to_english=args.translate_to_english,
         api_key=args.api_key,
         enhance_prompt=args.enhance_prompt,
+        interactive_mode=args.interactive,
     )
 
 
