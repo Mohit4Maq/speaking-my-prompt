@@ -23,6 +23,12 @@ dependencies = [
   "keyring>=25.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0.0",
+  "pytest-mock>=3.10.0",
+]
+
 [project.scripts]
 lazy-prompt = "lazy_prompt.cli:main"
 

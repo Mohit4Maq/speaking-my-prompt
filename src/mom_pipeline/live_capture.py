@@ -1,6 +1,7 @@
 """Live microphone capture and streaming to Whisper."""
 import io
 import queue
+import time
 from typing import Callable, Optional
 
 import sounddevice as sd
@@ -55,6 +56,81 @@ def stream_audio(
         stream.close()
 
     # Concatenate and preprocess all audio data
+    full_audio = np.concatenate(audio_data, axis=0)
+    full_audio = _preprocess_audio(full_audio, sample_rate)
+    return _array_to_wav(full_audio, sample_rate)
+
+
+def stream_audio_auto_stop(
+    sample_rate: int = 16000,
+    blocksize: int = 4096,
+    silence_threshold: float = 0.010,
+    silence_duration: float = 1.9,
+    min_capture: float = 1.2,
+    max_duration: float = 120.0,
+    on_chunk: Optional[Callable[[bytes], None]] = None,
+) -> bytes:
+    """Capture audio and auto-stop after sustained silence.
+
+    - Starts capturing immediately, no keypress needed.
+    - Stops after `silence_duration` seconds of silence once speech has started.
+    - Enforces `min_capture` to avoid premature stop and `max_duration` as safety.
+    - Returns full audio as WAV bytes.
+    """
+    audio_queue = queue.Queue()
+
+    def audio_callback(indata, frames, time_info, status):
+        if status:
+            print(f"Audio status: {status}")
+        audio_queue.put(indata.copy())
+
+    stream = sd.InputStream(
+        samplerate=sample_rate,
+        channels=1,
+        blocksize=blocksize,
+        callback=audio_callback,
+        dtype=np.float32,
+    )
+    stream.start()
+
+    print("Recording... (auto-stops after silence)")
+    audio_data = []
+    start_time = time.time()
+    speech_started = False
+    silence_start = None
+
+    try:
+        while True:
+            chunk = audio_queue.get(timeout=0.5)
+            audio_data.append(chunk)
+
+            rms = float(np.sqrt(np.mean(np.square(chunk))))
+            now = time.time()
+
+            if rms > silence_threshold:
+                speech_started = True
+                silence_start = None
+            else:
+                if speech_started:
+                    if silence_start is None:
+                        silence_start = now
+                    elif (now - silence_start) >= silence_duration and (now - start_time) >= min_capture:
+                        break
+
+            if on_chunk:
+                wav_bytes = _array_to_wav(chunk, sample_rate)
+                on_chunk(wav_bytes)
+
+            if (now - start_time) >= max_duration:
+                break
+
+    finally:
+        stream.stop()
+        stream.close()
+
+    if not audio_data:
+        return b""
+
     full_audio = np.concatenate(audio_data, axis=0)
     full_audio = _preprocess_audio(full_audio, sample_rate)
     return _array_to_wav(full_audio, sample_rate)

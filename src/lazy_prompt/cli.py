@@ -23,6 +23,9 @@ try:
 except Exception:
     keyring = None
 
+from mom_pipeline.live_capture import stream_audio, stream_audio_auto_stop
+from mom_pipeline.live_transcribe import transcribe_audio, translate_audio
+from mom_pipeline.utils import ensure_dir, now_ts, safe_json_dump
 from lazy_prompt.interactive import interactive_refinement_flow
 
 
@@ -100,24 +103,45 @@ def run_once(
 
     print("\n=== lazy_prompt: Voice → Transcript ===")
     print(f"Language: {language}")
-    print("\nStarting voice capture. Press Ctrl+C to stop.\n")
+    
+    # For interactive mode, auto-start voice capture (hands-free)
+    if interactive_mode:
+        print("\n🎯 Interactive Refinement Mode (Hands-Free)")
+        print("Starting voice capture automatically. Speak your initial idea; I'll stop after you pause.\n")
+        start_time = time.time()
+        try:
+            audio_bytes = stream_audio_auto_stop()
+        except KeyboardInterrupt:
+            print("\nCapture interrupted.")
+            return 1
 
-    start_time = time.time()
-    try:
-        audio_bytes = stream_audio(duration=None)
-    except KeyboardInterrupt:
-        print("\nCapture interrupted.")
-        return 1
+        print("\nTranscribing with Whisper...")
+        try:
+            if translate_to_english:
+                full_text, segments = translate_audio(audio_bytes, source_language=language)
+            else:
+                full_text, segments = transcribe_audio(audio_bytes, language=language)
+        except Exception as exc:  # noqa: BLE001
+            print(f"Transcription error: {exc}")
+            return 1
+    else:
+        print("\nStarting voice capture. Press Ctrl+C to stop.\n")
+        start_time = time.time()
+        try:
+            audio_bytes = stream_audio(duration=None)
+        except KeyboardInterrupt:
+            print("\nCapture interrupted.")
+            return 1
 
-    print("\nTranscribing with Whisper...")
-    try:
-        if translate_to_english:
-            full_text, segments = translate_audio(audio_bytes, source_language=language)
-        else:
-            full_text, segments = transcribe_audio(audio_bytes, language=language)
-    except Exception as exc:  # noqa: BLE001
-        print(f"Transcription error: {exc}")
-        return 1
+        print("\nTranscribing with Whisper...")
+        try:
+            if translate_to_english:
+                full_text, segments = translate_audio(audio_bytes, source_language=language)
+            else:
+                full_text, segments = transcribe_audio(audio_bytes, language=language)
+        except Exception as exc:  # noqa: BLE001
+            print(f"Transcription error: {exc}")
+            return 1
 
     if not full_text.strip():
         print("No speech detected. Exiting.")

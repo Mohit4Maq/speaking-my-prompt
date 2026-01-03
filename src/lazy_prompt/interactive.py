@@ -1,235 +1,254 @@
 """Interactive prompt refinement module for lazy_prompt.
 
-This module implements a conversational AI system that engages users in dialogue
-to refine their spoken prompts through clarifying questions and iterative feedback.
-Users can respond via voice (transcribed) or text, and retake their responses at any time.
+This module implements an interactive dialogue where the AI asks follow-up questions
+to clarify and expand on the user's initial task description, then generates a
+comprehensive refined prompt based on the entire conversation.
 """
 
 from typing import Optional
+import shutil
+import subprocess
 from openai import OpenAI
 
-from mom_pipeline.live_capture import stream_audio
+from mom_pipeline.live_capture import stream_audio_auto_stop
 from mom_pipeline.live_transcribe import transcribe_audio
 
 
-class InteractiveRefiner:
-    """Handles interactive refinement of user prompts through conversational dialogue."""
+def _speak_text(text: str) -> None:
+    """Speak text aloud using macOS `say` if available; otherwise, no-op.
 
-    def __init__(self, api_key: Optional[str] = None):
-        """Initialize the interactive refiner.
-        
-        Args:
-            api_key: OpenAI API key. If None, uses environment variable.
-        """
-        self.client = OpenAI(api_key=api_key) if api_key else OpenAI()
-        self.conversation_history = []
-        
-    def start_conversation(self, initial_prompt: str) -> str:
-        """Start an interactive refinement conversation.
-        
-        Args:
-            initial_prompt: The user's initial spoken prompt.
-            
-        Returns:
-            The AI's first response asking for clarification.
-        """
-        system_message = {
-            "role": "system",
-            "content": (
-                "You are an expert prompt refinement assistant. Your goal is to help users "
-                "clarify and refine their tasks through conversational dialogue.\n\n"
-                "Guidelines:\n"
-                "1. Ask 1-2 focused questions at a time to understand the user's goal\n"
-                "2. Summarize your understanding and ask for confirmation\n"
-                "3. Identify ambiguities, missing context, or constraints\n"
-                "4. Suggest improvements or alternative approaches when helpful\n"
-                "5. After 2-3 exchanges, propose a refined, detailed prompt\n"
-                "6. Be conversational, friendly, and supportive\n\n"
-                "When the user confirms the refined prompt is good, respond with:\n"
-                "REFINED_PROMPT: [final refined prompt here]"
-            )
-        }
-        
-        self.conversation_history = [system_message]
-        
-        user_message = {
-            "role": "user",
-            "content": f"I need help refining this task: {initial_prompt}"
-        }
-        self.conversation_history.append(user_message)
-        
-        response = self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=self.conversation_history,
-            temperature=0.7,
-        )
-        
-        ai_response = response.choices[0].message.content
-        self.conversation_history.append({"role": "assistant", "content": ai_response})
-        
-        return ai_response
-    
-    def continue_conversation(self, user_response: str) -> tuple[str, bool]:
-        """Continue the refinement conversation.
-        
-        Args:
-            user_response: The user's response to the AI's question.
-            
-        Returns:
-            Tuple of (AI response, is_complete) where is_complete indicates
-            if the refinement is done.
-        """
-        self.conversation_history.append({"role": "user", "content": user_response})
-        
-        response = self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=self.conversation_history,
-            temperature=0.7,
-        )
-        
-        ai_response = response.choices[0].message.content
-        self.conversation_history.append({"role": "assistant", "content": ai_response})
-        
-        # Check if refinement is complete
-        is_complete = "REFINED_PROMPT:" in ai_response
-        
-        return ai_response, is_complete
-    
-    def extract_refined_prompt(self, ai_response: str) -> str:
-        """Extract the refined prompt from the AI's final response.
-        
-        Args:
-            ai_response: The AI's response containing the refined prompt.
-            
-        Returns:
-            The extracted refined prompt.
-        """
-        if "REFINED_PROMPT:" in ai_response:
-            return ai_response.split("REFINED_PROMPT:", 1)[1].strip()
-        return ai_response
-
-
-def get_user_input_voice_or_text(language: str = "en", api_key: Optional[str] = None) -> Optional[str]:
-    """Get user input via voice or text.
-    
-    Args:
-        language: Language for voice transcription.
-        api_key: OpenAI API key for transcription.
-        
-    Returns:
-        The user's input as text, or None if cancelled.
+    Keeps dependencies minimal while enabling conversational audio playback for AI questions.
     """
-    print("\n📝 How would you like to respond?")
-    print("  [1] Speak (press Ctrl+C when done)")
-    print("  [2] Type")
-    print("  [R] Retake (discard and start over)")
-    print("  [Q] Quit interactive mode")
-    
-    choice = input("\nEnter your choice (1/2/R/Q): ").strip().upper()
-    
-    if choice == "1":
-        print("\n🎤 Recording... Press Ctrl+C when done.\n")
-        try:
-            audio_bytes = stream_audio(duration=None)
-            print("\n📝 Transcribing your response...\n")
-            
-            text, _ = transcribe_audio(audio_bytes, language=language)
-            if not text.strip():
-                print("❌ No speech detected. Please try again.\n")
-                return get_user_input_voice_or_text(language, api_key)
-            
-            print(f"✓ Transcribed: {text}\n")
-            return text
-            
-        except KeyboardInterrupt:
-            print("\n⏸️  Recording cancelled.")
-            return get_user_input_voice_or_text(language, api_key)
-    
-    elif choice == "2":
-        user_text = input("Enter your response: ").strip()
-        if not user_text:
-            print("❌ Empty input. Please try again.\n")
-            return get_user_input_voice_or_text(language, api_key)
-        return user_text
-    
-    elif choice == "R":
-        return "RETAKE"
-    
-    elif choice == "Q":
-        return "QUIT"
-    
-    else:
-        print("❌ Invalid choice. Please enter 1, 2, R, or Q.\n")
-        return get_user_input_voice_or_text(language, api_key)
+    say_cmd = shutil.which("say")
+    if not say_cmd or not text.strip():
+        return
+    try:
+        subprocess.run([say_cmd, text], check=False)
+    except Exception:
+        # Fail silently to avoid interrupting the flow if TTS is unavailable.
+        pass
 
 
-def interactive_refinement_flow(initial_prompt: str, language: str = "en", api_key: Optional[str] = None) -> str:
-    """Run the full interactive refinement flow in the terminal with voice support.
+def interactive_dialogue_session(initial_prompt: str, language: str = "en", api_key: Optional[str] = None) -> tuple[list[dict], str]:
+    """Run an interactive dialogue with AI asking follow-up questions.
+    
+    User speaks initial idea → Whisper transcribes → LLM asks clarifying questions
+    → User answers via voice → LLM asks more questions → User says "DONE" to finish
+    → Returns full conversation for final prompt generation.
     
     Args:
         initial_prompt: The user's initial spoken prompt.
+        language: Language for voice transcription.
+        api_key: OpenAI API key for transcription and LLM.
+        
+    Returns:
+        Tuple of (conversation_history, combined_transcript) where conversation_history
+        is the full chat history and combined_transcript is all user inputs combined.
+    """
+    client = OpenAI(api_key=api_key) if api_key else OpenAI()
+    
+    # Remove optional wake phrase "Hey Jarvis" to keep prompts clean
+    stripped_initial = initial_prompt
+    low = initial_prompt.lower().strip()
+    if low.startswith("hey jarvis"):
+        stripped_initial = initial_prompt[len(initial_prompt.split(" ", 2)[0]) + len(initial_prompt.split(" ", 2)[1]) + 2 :] if len(initial_prompt.split()) > 2 else ""
+        stripped_initial = stripped_initial.strip() or "(no content after wake phrase)"
+
+    print("\n" + "="*70)
+    print("🎯 Interactive Dialogue Session")
+    print("="*70)
+    print("\nYour initial idea:")
+    print(f'  "{stripped_initial}"\n')
+    print("I'll ask follow-up questions to clarify and expand your requirements.")
+    print("Speak naturally - I'll understand your answers.\n")
+    print("When done, just say 'DONE' and I'll generate your refined prompt.\n")
+    print("="*70 + "\n")
+    
+    # Initialize conversation history
+    conversation_history = [
+        {"role": "system", "content": """You are an expert prompt engineer and task analyst speaking with the user.
+
+Your job:
+1) Listen to their task, then ask clarifying follow-up questions.
+2) Keep the tone conversational and natural (no rigid bullet lists in questions).
+3) Ask 1-3 specific, focused questions per turn that dig deeper based on what they already said.
+4) Cover objectives, constraints, context, tech preferences, success criteria.
+5) When you have enough info, ask: "Are we good to go? I have all I need for a detailed prompt."
+
+Ask in plain sentences, friendly and concise, not formal checklists."""},
+        {"role": "user", "content": f"Here's my initial idea:\n\n{stripped_initial}"}
+    ]
+    
+    # Get initial questions from LLM
+    print("🤖 AI: Let me ask some clarifying questions...\n")
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=conversation_history,
+        temperature=0.7,
+    )
+    
+    ai_questions = response.choices[0].message.content
+    conversation_history.append({"role": "assistant", "content": ai_questions})
+    print(f"{ai_questions}\n")
+    _speak_text(ai_questions)
+    
+    # Conversation loop
+    turn_number = 1
+    all_user_inputs = [initial_prompt]
+    
+    while True:
+        print(f"\n{'='*70}")
+        print(f"Turn {turn_number}: Your turn to speak")
+        print("="*70)
+        print(f"🎤 Recording... (Say 'DONE' when finished, or press Ctrl+C to stop)\n")
+        
+        try:
+            # Capture user's spoken answer
+            audio_bytes = stream_audio_auto_stop()
+            print("\n📝 Transcribing...\n")
+            user_text, _ = transcribe_audio(audio_bytes, language=language)
+            
+            if not user_text.strip():
+                print("❌ No speech detected. Please try again.\n")
+                continue
+            
+            print(f"✓ You said:")
+            print(f"  {user_text}\n")
+            
+            all_user_inputs.append(user_text)
+            
+            # Check if user said DONE
+            user_lower = user_text.lower().strip()
+            if any(word in user_lower for word in ["done", "that's it", "that's all", "finished", "complete", "ready", "sleep jarvis", "sleep, jarvis"]):
+                print("\n✓ Got it! Generating your detailed prompt...\n")
+                conversation_history.append({"role": "user", "content": user_text})
+                break
+            
+            # Add user response to conversation
+            conversation_history.append({"role": "user", "content": user_text})
+            
+            # Get next set of questions from LLM
+            print("🤖 AI: Processing your answer...\n")
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=conversation_history,
+                temperature=0.7,
+            )
+            
+            ai_response = response.choices[0].message.content
+            conversation_history.append({"role": "assistant", "content": ai_response})
+            print(f"{ai_response}\n")
+            _speak_text(ai_response)
+            
+            turn_number += 1
+            
+        except KeyboardInterrupt:
+            print("\n\n✓ Session stopped. Generating your detailed prompt...\n")
+            break
+    
+    # Combine all user inputs for final analysis
+    combined_transcript = " ".join(all_user_inputs)
+    
+    return conversation_history, combined_transcript
+
+
+def generate_refined_prompt(conversation_history: list[dict], combined_transcript: str, api_key: Optional[str] = None) -> str:
+    """Generate a detailed refined prompt based on the entire conversation.
+    
+    The LLM uses the full dialogue history to create a comprehensive, structured prompt
+    that captures all the user's requirements, goals, constraints, and context.
+    
+    Args:
+        conversation_history: The full chat history between user and AI.
+        combined_transcript: All user inputs combined into one string.
+        api_key: OpenAI API key.
+        
+    Returns:
+        The final refined prompt.
+    """
+    client = OpenAI(api_key=api_key) if api_key else OpenAI()
+    
+    print("="*70)
+    print("🧠 Generating Your Refined Prompt")
+    print("="*70 + "\n")
+    
+    # System prompt for final refinement (developer/system-spec focused)
+    system_prompt = """You are an expert systems designer and prompt engineer.
+Produce a developer-ready system specification prompt from the entire conversation.
+
+Focus on:
+- Objective and scope: what must be built, who uses it, in/out of scope.
+- Architecture: key components/services, data flow, integrations, deployment target.
+- Interfaces & contracts: APIs (endpoints, methods, inputs/outputs, status codes),
+  events/queues, CLI/UX flows as applicable.
+- Data model: entities, fields, types, relationships, storage choices, indexing.
+- Non-functional requirements: performance, scale, latency, availability, durability,
+  security, privacy/compliance, observability, rate limits.
+- Constraints & assumptions: tech stack preferences/mandates, hosting limits, budgets,
+  timelines, regulatory or data residency constraints.
+- Error handling & resiliency: retries, backoff, idempotency, fallbacks.
+- Testing & acceptance: test strategy, success criteria, sample test cases/fixtures.
+- Delivery: artifacts expected (e.g., code, IaC, docs), rollout/migration notes.
+
+Style:
+- Concise, professional, and directly usable as a system prompt for an LLM or developer.
+- Avoid fluffy language; be specific and actionable.
+- Use clear sections with headers and bullet points; include short examples where helpful.
+- Keep questions out of the final output; deliver a definitive spec/prompt."""
+    
+    # Add a final system message to generate the refined prompt
+    final_messages = (
+        [{"role": "system", "content": system_prompt}] +
+        conversation_history +
+        [{"role": "user", "content": """Using our entire conversation, produce a developer-ready system prompt/spec.
+It should be immediately actionable by an LLM or engineering team to implement.
+Include objective, scope, architecture, APIs/contracts, data model, NFRs, constraints,
+error handling, testing/acceptance, and delivery expectations. Be concise, precise,
+and sectioned for quick execution."""}]
+    )
+    
+    # Call GPT-4o for refinement
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=final_messages,
+        temperature=0.7,
+    )
+    
+    refined_prompt = response.choices[0].message.content
+    
+    return refined_prompt
+
+
+def interactive_refinement_flow(initial_prompt: str, language: str = "en", api_key: Optional[str] = None) -> str:
+    """Run the full interactive dialogue and refinement flow.
+    
+    Args:
+        initial_prompt: The user's initial spoken prompt (used as starting context).
         language: Language for voice transcription.
         api_key: OpenAI API key.
         
     Returns:
         The final refined prompt.
     """
-    refiner = InteractiveRefiner(api_key=api_key)
+    # Run interactive dialogue
+    conversation_history, combined_transcript = interactive_dialogue_session(
+        initial_prompt, 
+        language=language, 
+        api_key=api_key
+    )
     
-    print("\n" + "="*70)
-    print("🤖 Interactive Prompt Refinement")
-    print("="*70)
-    print("\nYour initial prompt:")
-    print(f"  \"{initial_prompt}\"\n")
+    if not combined_transcript:
+        print("❌ No conversation recorded. Returning original prompt.")
+        return initial_prompt
     
-    # Start conversation
-    ai_question = refiner.start_conversation(initial_prompt)
-    print(f"AI: {ai_question}\n")
+    # Generate refined prompt based on entire conversation
+    refined_prompt = generate_refined_prompt(
+        conversation_history,
+        combined_transcript,
+        api_key=api_key
+    )
     
-    # Conversation loop
-    max_turns = 5
-    turn = 0
-    
-    while turn < max_turns:
-        # Get user input (voice or text)
-        user_input = get_user_input_voice_or_text(language=language, api_key=api_key)
-        
-        if user_input == "RETAKE":
-            print("\n" + "="*70)
-            print("🔄 Restarting interactive refinement...")
-            print("="*70)
-            # Restart with fresh conversation
-            return interactive_refinement_flow(initial_prompt, language=language, api_key=api_key)
-        
-        if user_input == "QUIT":
-            print("\n\n❌ Interactive refinement cancelled. Returning to original prompt.")
-            return initial_prompt
-        
-        if not user_input:
-            continue
-        
-        # Continue conversation
-        ai_response, is_complete = refiner.continue_conversation(user_input)
-        print(f"AI: {ai_response}\n")
-        
-        if is_complete:
-            refined = refiner.extract_refined_prompt(ai_response)
-            print("="*70)
-            print("✅ Refinement Complete!")
-            print("="*70)
-            print("\nFinal Refined Prompt:")
-            print(f"\n{refined}\n")
-            print("="*70)
-            return refined
-        
-        turn += 1
-    
-    # Max turns reached
-    print("\n(Refinement process complete after maximum exchanges)\n")
-    print("="*70)
-    print("Final Prompt (based on conversation):")
-    print(f"\n{ai_response}\n")
-    print("="*70)
-    
-    return ai_response
+    return refined_prompt
+
+
 
