@@ -3,11 +3,11 @@ import os
 import time
 
 from dotenv import load_dotenv
-from src.mom_pipeline.intake import resolve_source, validate_and_convert, split_if_needed
-from src.mom_pipeline.transcribe import transcribe_files
-from src.mom_pipeline.postprocess import normalize_segments, segments_to_text
-from src.mom_pipeline.mom_generate import generate_mom, render_markdown
-from src.mom_pipeline.utils import (
+from mom_pipeline.intake import resolve_source, validate_and_convert, split_if_needed
+from mom_pipeline.transcribe import transcribe_files
+from mom_pipeline.postprocess import normalize_segments, segments_to_text
+from mom_pipeline.mom_generate import generate_mom, render_markdown
+from mom_pipeline.utils import (
     ensure_dir,
     ffprobe_duration,
     now_ts,

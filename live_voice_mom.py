@@ -7,11 +7,11 @@ from datetime import datetime
 
 from dotenv import load_dotenv
 
-from src.mom_pipeline.live_capture import stream_audio
-from src.mom_pipeline.live_transcribe import stream_transcription
-from src.mom_pipeline.postprocess import normalize_segments, segments_to_text
-from src.mom_pipeline.mom_generate import generate_mom, render_markdown
-from src.mom_pipeline.utils import ensure_dir, now_ts, safe_json_dump
+from mom_pipeline.live_capture import stream_audio
+from mom_pipeline.live_transcribe import stream_transcription
+from mom_pipeline.postprocess import normalize_segments, segments_to_text
+from mom_pipeline.mom_generate import generate_mom, render_markdown
+from mom_pipeline.utils import ensure_dir, now_ts, safe_json_dump
 
 
 def main():

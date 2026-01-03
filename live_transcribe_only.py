@@ -7,9 +7,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 import pyperclip
 
-from src.mom_pipeline.live_capture import stream_audio
-from src.mom_pipeline.live_transcribe import transcribe_audio
-from src.mom_pipeline.utils import ensure_dir, now_ts, safe_json_dump
+from mom_pipeline.live_capture import stream_audio
+from mom_pipeline.live_transcribe import transcribe_audio
+from mom_pipeline.utils import ensure_dir, now_ts, safe_json_dump
 
 
 def main():

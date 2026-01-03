@@ -1,6 +1,6 @@
 """Real-time transcription from live audio chunks."""
 import io
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Optional
 from openai import OpenAI
 from scipy.io import wavfile
 import numpy as np
@@ -44,6 +44,23 @@ def transcribe_audio(audio_bytes: bytes, language: str = "en") -> Tuple[str, Lis
         return (full_text, segments)
     except Exception as e:
         print(f"Transcription error: {e}")
+        import traceback
+        traceback.print_exc()
+        return ("", [])
+
+
+def translate_audio(audio_bytes: bytes, source_language: Optional[str] = None) -> Tuple[str, List[Dict]]:
+    """Translate audio to English using Whisper translate endpoint."""
+    client = OpenAI()
+    try:
+        result = client.audio.translations.create(
+            model="whisper-1",
+            file=("audio.wav", io.BytesIO(audio_bytes), "audio/wav"),
+        )
+        full_text = result.text.strip()
+        return (full_text, [])
+    except Exception as e:
+        print(f"Translation error: {e}")
         import traceback
         traceback.print_exc()
         return ("", [])

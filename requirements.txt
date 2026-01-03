@@ -7,3 +7,4 @@ watchdog>=3.0.0
 sounddevice>=0.4.6
 scipy>=1.11.0
 pyperclip>=1.8.2
+keyring>=25.0.0

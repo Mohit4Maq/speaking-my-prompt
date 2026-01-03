@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lazy-prompt"
+version = "0.1.4"
+description = "Live mic to transcript CLI powered by OpenAI Whisper"
+readme = "README.md"
+authors = [{ name = "Mohit Chand" }]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.0.0",
+  "requests>=2.31.0",
+  "tqdm>=4.66.0",
+  "python-dateutil>=2.8.2",
+  "python-dotenv>=1.0.0",
+  "watchdog>=3.0.0",
+  "sounddevice>=0.4.6",
+  "scipy>=1.11.0",
+  "pyperclip>=1.8.2",
+  "keyring>=25.0.0",
+]
+
+[project.scripts]
+lazy-prompt = "lazy_prompt.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Mohit4Maq/speaking-my-prompt"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["*"]
+

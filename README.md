@@ -1,454 +1,456 @@
-# Speech-to-Text & Minutes of Meeting (MoM) Pipeline
+# Lazy Prompt - Voice-to-Text CLI with AI Enhancement
 
-Convert Google Meet recordings or live voice into accurate transcripts and structured meeting minutes using OpenAI Whisper API. Integrated with VS Code Copilot for instant translation and code generation.
+**Transform your voice into polished, structured prompts with OpenAI Whisper and GPT-4.**
 
-## ✨ What It Does
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-### 1. **Live Voice Recording & Transcription** (Quickest way to get started)
+## 📋 Table of Contents
+
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Project Structure](#-project-structure)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Future Enhancements](#-future-enhancements)
+
+## ✨ Features
+
+**Simple command for instant voice-to-text:**
 ```bash
-voice
+lazy-prompt --language en
 ```
-- 🎤 Records your voice (press Ctrl+C to stop)
-- 📝 Transcribes to text using OpenAI Whisper
-- 📋 Copies transcript to clipboard automatically
-- 💬 Paste into VS Code Copilot for translation, code generation, or analysis
 
-### 2. **File-Based Transcription** (For existing recordings)
-```bash
-python live_transcribe_only.py --language en
-```
-- Transcribes MP3, MP4, WAV, M4A, WebM files
-- Saves audio + transcript + metadata
-- Supports 100+ languages
+**What it does:**
+- 🎤 **Records your voice** - High-quality audio capture with preprocessing
+- 🌍 **100+ languages** - Supports English, Hindi, Spanish, French, and more
+- 📝 **AI transcription** - OpenAI Whisper API for accurate speech-to-text
+- 📋 **Auto-clipboard** - Instantly copies to clipboard for easy pasting
+- 🚀 **GPT-4 enhancement** - Optional: Transform casual speech into expert-level structured prompts
+- 🔐 **Secure API storage** - Persist your OpenAI API key in OS keyring (macOS Keychain, Windows Credential Manager)
+- 💾 **Minimal footprint** - No files saved by default (clipboard-only mode)
 
-### 3. **Automatic Google Meet Recording Processing** (For production)
-```bash
-python -m src.mom_pipeline.watcher --watch ~/Downloads
-```
-- Monitors a folder for new recordings
-- Auto-transcribes when files appear
-- Generates structured MoM (Minutes of Meeting)
-
-### 4. **Full MoM Generation Pipeline** (For meetings)
-```bash
-python mom_cli.py --source meeting.mp4 --title "Quarterly Review" --participants "Alice,Bob"
-```
-- Transcribes audio/video
-- Extracts decisions, action items, risks, open questions
-- Generates JSON + Markdown reports
-- Ready for Notion, Slack, Jira automation
-
----
-
-## 🚀 Quick Start (5 minutes)
+## 🚀 Quick Start
 
 ### Prerequisites
-- **macOS** with zsh shell
-- **ffmpeg** (installed via Homebrew)
-- **OpenAI API Key** (from https://platform.openai.com/api-keys)
 
-### 1. Install Dependencies
+**System Requirements:**
+- Python 3.10 or higher
+- ffmpeg (audio processing)
+- OpenAI API Key ([get one here](https://platform.openai.com/api-keys))
+
+**Supported Platforms:**
+- macOS (tested)
+- Linux (should work)
+- Windows (requires ffmpeg installation)
+
+**Install ffmpeg:**
 ```bash
-# Install ffmpeg (one-time)
+# macOS
 brew install ffmpeg
 
-# Clone/navigate to project
-cd /Users/mohitchand/Python/speech_text
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
 
-# Create Python environment
+# Windows (via Chocolatey)
+choco install ffmpeg
+
+# Verify installation
+ffmpeg -version
+```
+
+## 📦 Installation
+
+### Option 1: Install from GitHub (Recommended)
+
+```bash
+# Install directly from GitHub
+pip install git+https://github.com/Mohit4Maq/speaking-my-prompt.git
+
+# Or using pipx (isolated environment)
+pipx install git+https://github.com/Mohit4Maq/speaking-my-prompt.git
+```
+
+### Option 2: Local Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/Mohit4Maq/speaking-my-prompt.git
+cd speaking-my-prompt
+
+# Create virtual environment
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install Python packages
-pip install -r requirements.txt
+# Install in editable mode
+pip install -e .
 ```
 
-### 2. Set Up API Key
-Create a `.env` file in the project root:
+### Verify Installation
+
 ```bash
-echo "OPENAI_API_KEY=sk-your-key-here" > .env
+lazy-prompt --help
 ```
 
-(Get your key from: https://platform.openai.com/api-keys)
+## 🎯 Usage
 
-### 3. Enable `voice` Command (Optional but Recommended)
+### Basic Usage
+
 ```bash
-# This was already added to your ~/.zshrc, just verify:
-source ~/.zshrc
-which voice
-# Should show: voice: aliased to voice_to_copilot
+# Simple voice-to-text (English)
+lazy-prompt --language en
+
+# First-time setup: persist your API key
+lazy-prompt --api-key sk-proj-your-key-here --language en
 ```
 
-### 4. Test It
+**What happens:**
+1. Terminal prompts you to start speaking
+2. Press `Ctrl+C` when done
+3. Whisper transcribes your audio
+4. Text is copied to clipboard automatically
+5. No files are saved (clipboard-only by default)
+
+### Advanced Features
+
+#### 🚀 GPT-4 Prompt Enhancement
+
+Transform casual speech into expert-level prompts:
+
 ```bash
-voice
-# Speak something, then Ctrl+C
-# ✓ Transcript copied to clipboard!
+lazy-prompt --enhance-prompt --language en
 ```
 
----
+**Example transformation:**
 
-## 📖 Usage Guide
+*You speak:* "Create a Python function that reads a CSV file and calculates the average of a column"
 
-### For Non-Coders: Use the `voice` Command
+*GPT-4 enhances to:*
+```
+Create a robust Python function with the following specifications:
 
-**Scenario: You want to translate your speech to Hindi using Copilot**
+1. **Function Signature:**
+   - Name: `calculate_column_average`
+   - Parameters: `file_path` (str), `column_name` (str)
+   - Return type: float
 
-1. **Open Terminal** (any folder)
-2. **Type:**
-   ```bash
-   voice
-   ```
-3. **Speak your English text** (e.g., "Translate this to Hindi: Hello, how are you?")
-4. **Press Ctrl+C** when done
-5. **Copy notification appears** → transcript is in clipboard
-6. **Open VS Code** → Copilot Chat (Cmd+I)
-7. **Paste** (Cmd+V) → Ask for Hindi translation
-8. **Done!** 🎉
+2. **Requirements:**
+   - Read CSV file using pandas library
+   - Handle missing values (skip or fill with 0)
+   - Validate column exists before processing
+   - Raise appropriate exceptions for errors
 
-**Files saved automatically:**
-- `outputs/<timestamp>_recording/audio_original.wav` — Your voice recording
-- `outputs/<timestamp>_recording/transcript.txt` — English text
-- `outputs/<timestamp>_recording/transcript_segments.json` — Detailed timestamps
-- `outputs/<timestamp>_recording/metadata.json` — Duration, processing time
+3. **Error Handling:**
+   - FileNotFoundError for invalid paths
+   - KeyError for non-existent columns
+   - ValueError for non-numeric data
 
----
+4. **Output Format:**
+   - Return average as float rounded to 2 decimal places
+   - Print summary statistics (count, sum, average)
+```
 
-### For Developers: Full Pipeline Options
+#### 🌍 Multi-Language Support
 
-#### Option A: Live Transcription (Simple)
 ```bash
-python live_transcribe_only.py --language en --copy-to-clipboard
-```
-- Saves audio + transcript
-- Auto-copies to clipboard for Copilot
-- No MoM generation
+# Hindi transcription
+lazy-prompt --language hi
 
-#### Option B: File Processing (Intermediate)
+# Spanish transcription
+lazy-prompt --language es
+
+# Auto-translate to English (any language)
+lazy-prompt --translate-to-english --language hi
+```
+
+**Supported languages:** en, es, fr, de, it, pt, nl, ru, zh, ja, ko, hi, ar, and [90+ more](https://platform.openai.com/docs/guides/speech-to-text/supported-languages)
+
+#### 💾 Save Audio & Transcripts
+
 ```bash
-python mom_cli.py \
-  --source ~/Downloads/meeting.mp4 \
-  --title "Team Standup" \
-  --participants "Alice,Bob,Carol" \
-  --output-dir outputs
+# Save to ~/lazy-prompt folder
+lazy-prompt --save --language en
 ```
-- Processes local or Google Drive files
-- Generates structured MoM
-- Outputs: transcript + MoM JSON + MoM Markdown + metadata
 
-#### Option C: Folder Watcher (Production)
+**Saved files:**
+- `audio_original.wav` - Original recording
+- `transcript.txt` - Raw transcription
+- `enhanced_prompt.txt` - GPT-4 enhanced version (if --enhance-prompt used)
+- `transcript_segments.json` - Timestamped segments
+- `metadata.json` - Processing metrics
+
+#### ⚙️ All Options
+
 ```bash
-python -m src.mom_pipeline.watcher \
-  --watch ~/Downloads \
-  --output-dir outputs \
-  --title-prefix "Meet: "
+lazy-prompt \
+  --language en \
+  --enhance-prompt \
+  --save \
+  --output-dir ~/my-prompts \
+  --api-key sk-your-key
+
+# Disable clipboard (useful for CI/CD)
+lazy-prompt --no-clipboard --save
 ```
-- Monitors folder for new recordings
-- Auto-processes when file appears
-- Perfect for Google Drive integration
 
-#### Option D: Launch on Startup (Advanced)
-Set up a LaunchAgent to auto-start the watcher on login:
-- Create `~/Library/LaunchAgents/com.mom.watcher.plist`
-- Use `launchctl load` to enable
-- (See original README.md for full plist template)
+### Command Reference
 
----
+| Flag | Description | Default |
+|------|-------------|:-------:|
+| `--language` | Language code (en, hi, es, etc.) | `en` |
+| `--enhance-prompt` | Use GPT-4 to enhance transcript | `off` |
+| `--translate-to-english` | Translate any language to English | `off` |
+| `--save` | Save audio/transcript to disk | `off` |
+| `--no-clipboard` | Disable clipboard copy | `off` |
+| `--output-dir` | Where to save files | `~/lazy-prompt` |
+| `--api-key` | Set and persist OpenAI API key | - |
 
 ## 📁 Project Structure
 
 ```
-speech_text/
-├── live_transcribe_only.py          # Main script: voice → transcript
-├── mom_cli.py                        # CLI: file → MoM
-├── .voice_alias.sh                   # Bash alias for `voice` command
-├── requirements.txt                  # Python dependencies
-├── .env                              # API key (create manually, git-ignored)
+speaking-my-prompt/
+├── README.md                         # Main documentation
+├── CONTRIBUTING.md                   # Contribution guidelines
+├── CHANGELOG.md                      # Version history
+├── LICENSE                           # MIT License
+├── pyproject.toml                    # Package metadata & dependencies
+├── requirements.txt                  # Development dependencies
 ├── .gitignore                        # Git ignore rules
-├── README.md                         # Main documentation (this file)
-├── VOICE_COPILOT.md                  # Copilot integration guide
-├── src/mom_pipeline/
-│   ├── live_capture.py               # Microphone capture + preprocessing
-│   ├── live_transcribe.py            # Whisper transcription
-│   ├── transcribe.py                 # File-based transcription
-│   ├── intake.py                     # File validation + conversion
-│   ├── postprocess.py                # Cleanup + normalization
-│   ├── mom_generate.py               # MoM JSON + Markdown generation
-│   ├── watcher.py                    # Folder monitoring
-│   ├── config.py                     # Configuration (formats, limits, models)
-│   ├── utils.py                      # Utilities (ffmpeg, timestamps, retry)
-│   └── __init__.py
-└── outputs/
-    └── <timestamp>_recording/        # Auto-created output folder
-        ├── audio_original.wav
-        ├── transcript.txt
-        ├── transcript_segments.json
-        └── metadata.json
+├── .env.example                      # Example environment file
+│
+├── src/
+│   ├── lazy_prompt/                  # Main package
+│   │   ├── __init__.py
+│   │   └── cli.py                    # CLI entrypoint (lazy-prompt command)
+│   │
+│   └── mom_pipeline/                 # Core modules
+│       ├── __init__.py
+│       ├── live_capture.py           # Audio capture with preprocessing
+│       ├── live_transcribe.py        # Whisper API integration
+│       ├── transcribe.py             # File-based transcription
+│       ├── intake.py                 # File validation & conversion
+│       ├── postprocess.py            # Text cleanup & normalization
+│       ├── mom_generate.py           # Meeting minutes generation
+│       ├── watcher.py                # Folder monitoring
+│       ├── config.py                 # Configuration
+│       └── utils.py                  # Utilities
+│
+├── scripts/
+│   └── build_app.sh                  # macOS .app/.dmg builder
+│
+├── gui_app.py                        # Optional GUI application
+├── setup.py                          # py2app configuration
+├── live_transcribe_only.py           # Standalone script
+├── live_voice_mom.py                 # Meeting minutes script
+└── mom_cli.py                        # File processing CLI
 ```
 
----
+## 🔧 Troubleshooting
 
-## 🎯 Supported Languages
+### Common Issues
 
-Whisper supports 100+ languages. Examples:
-- English (en)
-- Spanish (es)
-- Hindi (hi)
-- French (fr)
-- German (de)
-- Mandarin (zh)
-
-Use `--language` flag:
+#### `ffmpeg not found`
+**Solution:**
 ```bash
-python live_transcribe_only.py --language hi  # Hindi
-python live_transcribe_only.py --language es  # Spanish
-```
-
----
-
-## 🔧 Advanced Features
-
-### Generate Minutes of Meeting (MoM)
-
-```bash
-python mom_cli.py \
-  --source meeting.mp4 \
-  --title "Quarterly Planning" \
-  --datetime "2026-01-02T10:00:00" \
-  --participants "Alice,Bob,Carol" \
-  --output-dir outputs
-```
-
-**Generates:**
-- `transcript_cleaned.txt` — Clean transcript
-- `transcript_cleaned.json` — Segments with timestamps
-- `mom.json` — Structured data:
-  - Meeting title, date, participants
-  - Agenda items
-  - Discussion points by topic
-  - Decisions taken
-  - Action items (task, owner, due date, priority)
-  - Risks & dependencies
-  - Open questions
-  - Summary
-- `mom.md` — Human-readable Markdown
-- `metadata.json` — Processing metrics
-
-### Send to Slack
-
-```bash
-curl -X POST https://hooks.slack.com/services/XXX/YYY/ZZZ \
-  -H "Content-type: application/json" \
-  --data "{\"text\": \"$(cat outputs/.../mom.md)\"}"
-```
-
-### Send to Notion
-
-Use the `mom.json` output with Notion API:
-```python
-import requests
-import json
-
-mom = json.load(open("outputs/.../mom.json"))
-requests.post("https://api.notion.com/v1/pages", ...)
-```
-
----
-
-## ⚙️ Environment Setup
-
-### macOS (Recommended)
-```bash
-# Install Homebrew if not present
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install ffmpeg
+# macOS
 brew install ffmpeg
+
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
 
 # Verify
 ffmpeg -version
 ```
 
-### Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| `ffmpeg not found` | `brew install ffmpeg` |
-| `OPENAI_API_KEY not set` | Create `.env` with `OPENAI_API_KEY=sk-...` |
-| `Permission denied: ~/.zshrc` | Run: `sudo chown $USER ~/.zshrc` |
-| No speech detected | Ensure mic input is on; speak clearly |
-| Whisper timeout | File too large; will auto-split |
-
----
-
-## 📊 Output Examples
-
-### Sample Transcript (transcript.txt)
-```
-Hello team. Today we will review Q1 goals, resourcing, and risks.
-Decision: prioritize EU expansion.
-Action: Alice to prepare market analysis by January 15.
-Open question: budget approval timing.
-```
-
-### Sample MoM (mom.json)
-```json
-{
-  "meetingTitle": "Quarterly Planning",
-  "dateTime": "2026-01-02T10:00:00",
-  "platform": "Google Meet",
-  "participants": ["Alice", "Bob", "Carol"],
-  "agenda": ["Q1 goals", "Resourcing", "Risks"],
-  "decisions": ["Prioritize EU expansion"],
-  "actionItems": [
-    {
-      "task": "Market analysis EU",
-      "owner": "Alice",
-      "dueDate": "2026-01-15",
-      "priority": "High"
-    }
-  ],
-  "risks": ["Supply chain delays"],
-  "openQuestions": ["Budget approval timing"],
-  "summary": ["Q1 growth focused", "EU expansion prioritized"]
-}
-```
-
-### Sample MoM (mom.md)
-```markdown
-# Minutes of Meeting: Quarterly Planning
-
-- Date & Time: 2026-01-02T10:00:00
-- Platform: Google Meet
-- Participants: Alice, Bob, Carol
-
-## Agenda
-- Q1 goals
-- Resourcing
-- Risks
-
-## Decisions Taken
-- Prioritize EU expansion
-
-## Action Items
-- Task: Market analysis EU | Owner: Alice | Due: 2026-01-15 | Priority: High
-
-## Open Questions
-- Budget approval timing
-```
-
----
-
-## 🔐 Security & Privacy
-
-- **Local Processing:** Audio is processed locally (no permanent storage after transcription)
-- **API Key:** Stored in `.env` (git-ignored, never committed)
-- **No Hallucination:** Whisper transcribes only what's spoken
-- **Deterministic:** MoM generation uses temperature=0 for consistent outputs
-
----
-
-## 📝 Git & Version Control
-
+#### `OPENAI_API_KEY not set`
+**Solution:**
 ```bash
-# Initialize git (if needed)
-git init
+# Option 1: Use --api-key flag (persists to keyring)
+lazy-prompt --api-key sk-proj-your-key
 
-# Add remote (replace with your repo URL)
-git remote add origin https://github.com/yourusername/speech_text.git
+# Option 2: Set environment variable
+export OPENAI_API_KEY="sk-proj-your-key"
 
-# Commit & push
-git add .
-git commit -m "Initial: speech-to-text and MoM pipeline"
-git push origin main
+# Option 3: Create .env file
+echo 'OPENAI_API_KEY="sk-proj-your-key"' > .env
 ```
 
-**.gitignore** is included to exclude:
-- Python cache & virtual env
-- `.env` (API keys)
-- `outputs/` (user recordings)
-- IDE files (`.vscode`, `.idea`)
+#### `No speech detected`
+**Possible causes:**
+- Microphone not selected as default input
+- Speaking too quietly
+- Background noise interference
 
----
-
-## 💡 Example Workflows
-
-### Workflow 1: Daily Standup Transcription
+**Solution:**
 ```bash
-# Every morning
-voice
-# Speak: "Today I'll work on API endpoints and fix the login bug"
-# Ctrl+C → clipboard copy
-# Paste in Copilot to expand to detailed notes
+# Check microphone permissions (macOS)
+System Preferences → Security & Privacy → Microphone
+
+# Test microphone
+python -c "import sounddevice as sd; print(sd.query_devices())"
 ```
 
-### Workflow 2: Meeting Recording to Minutes
+#### `Permission denied: keyring`
+**Solution:**
+Keyring storage is optional. If it fails, use environment variables:
 ```bash
-# After Google Meet
-python mom_cli.py \
-  --source ~/Downloads/meeting_recording.mp4 \
-  --title "Sprint Planning" \
-  --participants "Team" \
-  --output-dir outputs
-
-# Open outputs/.../mom.md and share
+export OPENAI_API_KEY="sk-proj-your-key"
 ```
 
-### Workflow 3: Live Translation (English → Hindi)
+#### Import errors after installation
+**Solution:**
 ```bash
-# Speak English, translate to Hindi
-voice
-# Speak: "How to optimize database queries for better performance"
-# Ctrl+C
-# Paste in Copilot → ask for Hindi translation
+# Reinstall in clean environment
+pip uninstall lazy-prompt
+pip install --no-cache-dir git+https://github.com/Mohit4Maq/speaking-my-prompt.git
 ```
 
----
+### Getting Help
+
+- **Issues:** [GitHub Issues](https://github.com/Mohit4Maq/speaking-my-prompt/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/Mohit4Maq/speaking-my-prompt/discussions)
 
 ## 🤝 Contributing
 
-Feel free to extend this project:
-- Add speaker diarization (who said what)
-- Support for custom MoM templates
-- Notion/Slack auto-posting
-- Real-time live transcription UI
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
----
+**Quick start for contributors:**
 
-## 📜 License
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/speaking-my-prompt.git`
+3. Create a branch: `git checkout -b feature/your-feature-name`
+4. Make changes and test locally
+5. Commit: `git commit -m "Add: your feature description"`
+6. Push: `git push origin feature/your-feature-name`
+7. Open a Pull Request
 
-MIT License
-
----
-
-## ❓ FAQ
-
-**Q: Does it require internet?**  
-A: Yes, Whisper API requires OpenAI connectivity. Local Whisper (offline) is available but not used here.
-
-**Q: Is my audio private?**  
-A: Audio is sent to OpenAI Whisper API. It's not stored; use a paid API key for guaranteed privacy.
-
-**Q: Can I use it without VS Code?**  
-A: Yes! The transcript is saved to files and clipboard. You can use any text editor.
-
-**Q: How much does it cost?**  
-A: OpenAI Whisper: $0.006 per minute of audio. Very cheap!
-
-**Q: Can I use a different speech-to-text?**  
-A: This pipeline uses Whisper specifically. Alternatives: Google Cloud Speech-to-Text, AWS Transcribe.
-
----
-
-## 🎉 You're All Set!
-
-Start with:
+**Development setup:**
 ```bash
-voice
+# Install with development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/
+
+# Format code
+black src/
+ruff check src/
 ```
 
-Enjoy hands-free speech-to-text and Copilot integration! 🚀
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**MIT License Summary:**
+- ✅ Commercial use
+- ✅ Modification
+- ✅ Distribution
+- ✅ Private use
+- ❌ Liability
+- ❌ Warranty
+
+## 🚀 Future Enhancements
+
+### High Priority
+
+- [ ] **Real-time streaming transcription** - Display text as you speak
+  - Use Whisper API's streaming capabilities
+  - Show live word-by-word updates
+  - Reduce latency for immediate feedback
+
+- [ ] **Custom prompt templates** - Save and reuse prompt structures
+  - Template library (code review, meeting notes, brainstorming)
+  - Variable substitution in templates
+  - Template sharing via GitHub
+
+- [ ] **Multi-speaker detection** - Identify different speakers
+  - Use pyannote.audio for diarization
+  - Label speakers in transcript
+  - Export speaker-separated segments
+
+### Medium Priority
+
+- [ ] **Web interface** - Browser-based UI for non-CLI users
+  - Built with Flask/FastAPI
+  - Drag-and-drop audio upload
+  - Real-time progress tracking
+
+- [ ] **Audio preprocessing improvements**
+  - Noise reduction (noisereduce library)
+  - Volume normalization
+  - Echo cancellation
+
+- [ ] **Output format options**
+  - Export to Markdown, JSON, CSV, SRT (subtitles)
+  - Notion API integration
+  - Slack/Discord webhook support
+
+- [ ] **Voice commands** - Control via speech
+  - "Save this transcript"
+  - "Translate to Spanish"
+  - "Enhance this prompt"
+
+### Low Priority
+
+- [ ] **Offline mode** - Use local Whisper model
+  - Download and cache model
+  - Fallback when API unavailable
+  - Privacy-focused mode
+
+- [ ] **Meeting minutes enhancements**
+  - Action item extraction with assignees
+  - Decision tracking
+  - Follow-up reminders
+
+- [ ] **Mobile app** - iOS/Android companion
+  - Record on phone, process on server
+  - Push notifications when ready
+  - Sync with cloud storage
+
+- [ ] **Performance optimizations**
+  - Parallel processing for large files
+  - Chunk-based streaming for long recordings
+  - Caching for repeated requests
+
+### Research & Experimental
+
+- [ ] **Fine-tuned models** - Domain-specific accuracy
+  - Medical transcription
+  - Legal terminology
+  - Technical jargon
+
+- [ ] **Multi-modal input** - Combine audio + video + screen
+  - Screen recording with narration
+  - Slide deck + presentation audio
+  - Video call transcription
+
+- [ ] **AI-powered summarization** - Beyond transcription
+  - Key points extraction
+  - Sentiment analysis
+  - Topic clustering
+
+### Community Requests
+
+Have an idea? [Open an issue](https://github.com/Mohit4Maq/speaking-my-prompt/issues/new) with the label `enhancement`!
 
 ---
 
-**Questions?** Check `VOICE_COPILOT.md` for Copilot-specific tips.
+## 📊 Stats
+
+- **Version:** 0.1.4
+- **Python:** 3.10+
+- **Languages:** 100+
+- **License:** MIT
+
+## 🙏 Acknowledgments
+
+- **OpenAI** - Whisper API and GPT-4
+- **Contributors** - Thank you to all contributors!
+- **Community** - For feedback and feature requests
+
+---
+
+**Built with ❤️ by [Mohit Chand](https://github.com/Mohit4Maq)**
