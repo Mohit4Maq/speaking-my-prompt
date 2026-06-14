@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from mom_pipeline.live_capture import stream_audio_auto_stop
 from mom_pipeline.live_transcribe import transcribe_audio
+from mom_pipeline.utils import Retry
 
 
 def _speak_text(text: str) -> None:
@@ -81,12 +82,18 @@ Ask in plain sentences, friendly and concise, not formal checklists."""},
     
     # Get initial questions from LLM
     print("🤖 AI: Let me ask some clarifying questions...\n")
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=conversation_history,
-        temperature=0.7,
-    )
-    
+    try:
+        def call():
+            return client.chat.completions.create(
+                model="gpt-4o",
+                messages=conversation_history,
+                temperature=0.7,
+            )
+        response = Retry(attempts=3).run(call)
+    except Exception as e:
+        print(f"❌ Error contacting AI: {e}")
+        return [], ""
+
     ai_questions = response.choices[0].message.content
     conversation_history.append({"role": "assistant", "content": ai_questions})
     print(f"{ai_questions}\n")
@@ -129,17 +136,23 @@ Ask in plain sentences, friendly and concise, not formal checklists."""},
             
             # Get next set of questions from LLM
             print("🤖 AI: Processing your answer...\n")
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=conversation_history,
-                temperature=0.7,
-            )
-            
-            ai_response = response.choices[0].message.content
-            conversation_history.append({"role": "assistant", "content": ai_response})
-            print(f"{ai_response}\n")
-            _speak_text(ai_response)
-            
+            try:
+                def call():
+                    return client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=conversation_history,
+                        temperature=0.7,
+                    )
+                response = Retry(attempts=3).run(call)
+
+                ai_response = response.choices[0].message.content
+                conversation_history.append({"role": "assistant", "content": ai_response})
+                print(f"{ai_response}\n")
+                _speak_text(ai_response)
+            except Exception as e:
+                print(f"❌ Error contacting AI: {e}")
+                print("I'm having trouble connecting to the AI. Let's try continuing from where we were.\n")
+
             turn_number += 1
             
         except KeyboardInterrupt:
@@ -208,13 +221,18 @@ and sectioned for quick execution."""}]
     )
     
     # Call GPT-4o for refinement
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=final_messages,
-        temperature=0.7,
-    )
-    
-    refined_prompt = response.choices[0].message.content
+    try:
+        def call():
+            return client.chat.completions.create(
+                model="gpt-4o",
+                messages=final_messages,
+                temperature=0.7,
+            )
+        response = Retry(attempts=3).run(call)
+        refined_prompt = response.choices[0].message.content
+    except Exception as e:
+        print(f"❌ Critical error during final prompt generation: {e}")
+        return "Error generating refined prompt. Please try again."
     
     return refined_prompt
 

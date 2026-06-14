@@ -53,3 +53,6 @@ watcher.err.log
 # OS
 .DS_Store
 Thumbs.db
+
+# hire-eval generated competency cache
+competencies.json

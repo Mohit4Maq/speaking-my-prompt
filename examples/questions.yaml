@@ -1,0 +1,22 @@
+# Interview question bank. Each entry maps to competency ids produced by the
+# JD parse (see competencies.json after first run). `notes` is optional guidance
+# the scorer uses as "what good looks like".
+- id: q1
+  question: "Explain the difference between REST and GraphQL, and when you'd choose each."
+  competencies: [api-design, communication]
+  notes: "Look for: over-fetching/under-fetching, schema evolution, caching, client needs."
+
+- id: q2
+  question: "Walk me through how you debugged a hard production issue under pressure."
+  competencies: [problem-solving, communication]
+  notes: "Look for: systematic approach, hypotheses, metrics, root cause, follow-up."
+
+- id: q3
+  question: "Design a service that handles thousands of payment requests per second. How do you ensure correctness and resilience?"
+  competencies: [system-design, problem-solving]
+  notes: "Look for: idempotency, retries/backoff, data consistency, scaling, observability."
+
+- id: q4
+  question: "How do you make sure your Python services are reliable and well-tested?"
+  competencies: [python, system-design]
+  notes: "Look for: test strategy, error handling, type hints, CI, monitoring."

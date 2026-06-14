@@ -9,6 +9,8 @@ from scipy.io import wavfile
 from scipy import signal
 import numpy as np
 
+from .segmenter import UtteranceSegmenter
+
 
 def stream_audio(
     duration: Optional[float] = None,
@@ -28,14 +30,19 @@ def stream_audio(
         audio_queue.put(indata.copy())
 
     # Start recording
-    stream = sd.InputStream(
-        samplerate=sample_rate,
-        channels=1,
-        blocksize=blocksize,
-        callback=audio_callback,
-        dtype=np.float32,
-    )
-    stream.start()
+    try:
+        stream = sd.InputStream(
+            samplerate=sample_rate,
+            channels=1,
+            blocksize=blocksize,
+            callback=audio_callback,
+            dtype=np.float32,
+        )
+        stream.start()
+    except Exception as e:
+        print(f"Error accessing microphone: {e}")
+        print("Please check if your microphone is connected and permissions are granted.")
+        return b""
 
     print("Recording... (Press Ctrl+C to stop)")
     audio_data = []
@@ -45,7 +52,7 @@ def stream_audio(
             audio_data.append(chunk)
             if on_chunk:
                 # Convert chunk to bytes for Whisper
-                wav_bytes = _array_to_wav(chunk, sample_rate)
+                wav_bytes = array_to_wav(chunk, sample_rate)
                 on_chunk(wav_bytes)
             if duration and len(audio_data) * (blocksize / sample_rate) >= duration:
                 break
@@ -57,8 +64,8 @@ def stream_audio(
 
     # Concatenate and preprocess all audio data
     full_audio = np.concatenate(audio_data, axis=0)
-    full_audio = _preprocess_audio(full_audio, sample_rate)
-    return _array_to_wav(full_audio, sample_rate)
+    full_audio = preprocess_audio(full_audio, sample_rate)
+    return array_to_wav(full_audio, sample_rate)
 
 
 def stream_audio_auto_stop(
@@ -84,44 +91,45 @@ def stream_audio_auto_stop(
             print(f"Audio status: {status}")
         audio_queue.put(indata.copy())
 
-    stream = sd.InputStream(
-        samplerate=sample_rate,
-        channels=1,
-        blocksize=blocksize,
-        callback=audio_callback,
-        dtype=np.float32,
-    )
-    stream.start()
+    try:
+        stream = sd.InputStream(
+            samplerate=sample_rate,
+            channels=1,
+            blocksize=blocksize,
+            callback=audio_callback,
+            dtype=np.float32,
+        )
+        stream.start()
+    except Exception as e:
+        print(f"Error accessing microphone: {e}")
+        print("Please check if your microphone is connected and permissions are granted.")
+        return b""
 
     print("Recording... (auto-stops after silence)")
     audio_data = []
     start_time = time.time()
-    speech_started = False
-    silence_start = None
+
+    segmenter = UtteranceSegmenter(
+        sample_rate=sample_rate,
+        silence_threshold=silence_threshold,
+        silence_duration=silence_duration,
+        min_utterance=min_capture,
+        max_utterance=max_duration,
+    )
 
     try:
         while True:
             chunk = audio_queue.get(timeout=0.5)
             audio_data.append(chunk)
 
-            rms = float(np.sqrt(np.mean(np.square(chunk))))
-            now = time.time()
-
-            if rms > silence_threshold:
-                speech_started = True
-                silence_start = None
-            else:
-                if speech_started:
-                    if silence_start is None:
-                        silence_start = now
-                    elif (now - silence_start) >= silence_duration and (now - start_time) >= min_capture:
-                        break
-
             if on_chunk:
-                wav_bytes = _array_to_wav(chunk, sample_rate)
+                wav_bytes = array_to_wav(chunk, sample_rate)
                 on_chunk(wav_bytes)
 
-            if (now - start_time) >= max_duration:
+            if segmenter.feed(chunk) is not None:
+                break
+
+            if (time.time() - start_time) >= max_duration:
                 break
 
     finally:
@@ -132,11 +140,11 @@ def stream_audio_auto_stop(
         return b""
 
     full_audio = np.concatenate(audio_data, axis=0)
-    full_audio = _preprocess_audio(full_audio, sample_rate)
-    return _array_to_wav(full_audio, sample_rate)
+    full_audio = preprocess_audio(full_audio, sample_rate)
+    return array_to_wav(full_audio, sample_rate)
 
 
-def _preprocess_audio(audio_array: np.ndarray, sample_rate: int) -> np.ndarray:
+def preprocess_audio(audio_array: np.ndarray, sample_rate: int) -> np.ndarray:
     """
     Preprocess audio: normalize, remove DC offset, apply gentle high-pass filter.
     Reduces hallucination by cleaning up background noise and improving clarity.
@@ -162,7 +170,7 @@ def _preprocess_audio(audio_array: np.ndarray, sample_rate: int) -> np.ndarray:
     return audio_array
 
 
-def _array_to_wav(audio_array: np.ndarray, sample_rate: int) -> bytes:
+def array_to_wav(audio_array: np.ndarray, sample_rate: int) -> bytes:
     """Convert numpy audio array to WAV bytes."""
     # Ensure float32 and in range [-1, 1]
     audio_array = np.asarray(audio_array, dtype=np.float32)

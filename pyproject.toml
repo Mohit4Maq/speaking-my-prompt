@@ -19,8 +19,11 @@ dependencies = [
   "watchdog>=3.0.0",
   "sounddevice>=0.4.6",
   "scipy>=1.11.0",
+  "numpy>=1.24",
   "pyperclip>=1.8.2",
   "keyring>=25.0.0",
+  "rich>=13.0",
+  "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +34,8 @@ dev = [
 
 [project.scripts]
 lazy-prompt = "lazy_prompt.cli:main"
+hire-eval = "interview_eval.cli:main"
+meet-mom = "meeting_mom.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Mohit4Maq/speaking-my-prompt"

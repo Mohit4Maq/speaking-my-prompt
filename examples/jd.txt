@@ -1,0 +1,22 @@
+Senior Backend Engineer — Platform Team
+
+We are hiring a Senior Backend Engineer to design and operate the services that
+power our payments platform. You will own backend APIs end to end, make
+system-design decisions for high-throughput services, and mentor other
+engineers.
+
+Responsibilities:
+- Design and build reliable, well-tested Python services and REST APIs.
+- Make architecture decisions for systems handling thousands of requests/sec.
+- Ensure correctness, observability, and resilience (retries, idempotency).
+- Collaborate closely with product and communicate trade-offs clearly.
+
+Requirements:
+- Strong Python and API design experience.
+- Solid grasp of distributed systems, databases, caching, and scaling.
+- A track record of debugging production issues under pressure.
+- Clear written and verbal communication.
+
+Nice to have:
+- Experience with payments/financial systems.
+- Familiarity with AWS, Postgres, and event-driven architectures.
